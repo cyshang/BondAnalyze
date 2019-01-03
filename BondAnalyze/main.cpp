@@ -82,7 +82,13 @@ int main(int argc, char **argv)
 			int num;
 
 			sin >> iE >> jE >> sort_type >> num;
-			rule.emplace_back(new FinderBond(iE, jE, sort_type, num));
+			if (sin)
+				rule.emplace_back(new FinderBond(iE, jE, sort_type, num));
+			else {
+				cerr << "Error: " << __FILE__ << " : " << __LINE__ << endl;
+				cerr << "invalid rule" << endl;
+				exit(1);
+			}
 		}
 		else if (var == "atom") {
 			string aE, aiE, ajE, aSortType;
@@ -114,21 +120,21 @@ int main(int argc, char **argv)
 				exit(1);
 			}
 
-			rule.emplace_back(new FinderAtom(aE, aiE, ajE, aSortType, aNum, bE, biE, bjE, bSortType, bNum));
+			if (sin)
+				rule.emplace_back(new FinderAtom(aE, aiE, ajE, aSortType, aNum, bE, biE, bjE, bSortType, bNum));
+			else {
+				cerr << "Error: " << __FILE__ << " : " << __LINE__ << endl;
+				cerr << "invalid rule" << endl;
+				exit(1);
+			}
+		}
+		else {
+			cerr << "Error: " << __FILE__ << " : " << __LINE__ << endl;
+			cerr << "invalid rule" << endl;
+			exit(1);
 		}
 
-		if (opt_h) {
-			cout << setw(BLANK) << left << '#';
-			for (int i = 0; i < rule.size(); ++i) {
-				ostringstream sout;
-				sout << "rule" << i + 1;
-				cout << setw(DATAWIDTH) << left << sout.str();
-			}
-			if (!opt_e)
-				cout << endl;
-			else
-				cout << "Energy" << endl;
-		}
+
 	}
 	else if (opt_r) {
 
@@ -195,6 +201,150 @@ int main(int argc, char **argv)
 			}
 		}
 		fin.close();
+	}
+	else {
+
+	}
+
+	Molecule molc;
+
+	if ((opt_r || opt_f) && (argc - optind > 1) || !(opt_r || opt_f) && (argc - optind > 0)) 
+	{
+		string in_file = argv[argc - 1];
+		string out_file = in_file;
+		
+		const auto pos = out_file.rfind('.');
+		if (pos < out_file.size()) {
+			out_file.replace(pos, out_file.size() - pos, ".anly");
+		}
+		else {
+			out_file.append(".anly");
+		}
+
+		ifstream fin;
+		ofstream fout;
+
+		fin.open(in_file.c_str(), ifstream::in);		
+		fout.open(out_file.c_str(), ofstream::out);
+
+		fout << setprecision(DATAPRECISION);
+
+		if (opt_f) {
+
+			if (opt_h) {
+				fout << setw(BLANK) << left << '#';
+				for (int i = 0; i < rule.size(); ++i) {
+					ostringstream sout;
+					sout << "rule" << i + 1;
+					fout << setw(DATAWIDTH) << left << sout.str();
+				}
+				if (!opt_e)
+					fout << endl;
+				else
+					fout << "Energy" << endl;
+			}
+		}
+		else if (opt_r) {
+
+			if (!opt_h) {
+				fout << setw(BLANK) << left << '#';
+				for (int i = 0; i < rule.size(); ++i) {
+					ostringstream sout;
+					sout << "rule" << i + 1;
+					fout << setw(DATAWIDTH) << left << sout.str();
+				}
+				if (opt_e)
+					fout << endl;
+				else
+					fout << "Energy" << endl;
+			}
+		}
+		else {
+
+			if (!opt_h) {
+				fout << setw(BLANK) << left << '#';
+				for (int iBondType = 0; iBondType < Molecule::nBondtype; ++iBondType) {
+					for (int iBond = 0; iBond < Molecule::nBond[iBondType]; ++iBond) {
+						ostringstream sout;
+						sout << Molecule::bondtype_list[iBondType] << '(' << iBond + 1 << ')';
+						fout << setw(DATAWIDTH) << left << sout.str();
+					}
+				}
+				if (opt_e)
+					fout << endl;
+				else
+					fout << "Energy" << endl;
+			}
+		}
+
+		int tmp;
+		while (fin >> tmp) {
+			molc.InputEnergy(fin);
+			molc.InputX(fin);
+
+			if (opt_f) {
+				if (opt_h)
+					fout << setw(BLANK) << left << ' ';
+
+				fout << setw(DATAWIDTH) << left << rule[0]->GetBond(molc);
+				if (opt_e)
+					fout << molc.refEnergy() << endl;
+				else
+					fout << endl;
+			}
+			else if (opt_r) {
+				if (!opt_h)
+					fout << setw(BLANK) << left << ' ';
+
+				for (size_t i = 0; i < rule.size(); ++i) {
+					fout << setw(DATAWIDTH) << left << rule[i]->GetBond(molc);
+				}
+				if (opt_e)
+					fout << endl;
+				else
+					fout << molc.refEnergy() << endl;
+			}
+			else {
+				if (!opt_h)
+					fout << setw(BLANK) << left << ' ';
+
+				vector<vector<Molecule::Bond>> bond = molc.refBond();
+				for (int iBondtype = 0; iBondtype < Molecule::nBondtype; ++iBondtype) {
+					sort(bond[iBondtype].begin(), bond[iBondtype].end());
+
+					for (int iBond = 0; iBond < Molecule::nBond[iBondtype]; ++iBond) {
+						fout << setw(DATAWIDTH) << left << bond[iBondtype][iBond].getLen();
+					}
+				}
+				if (opt_e)
+					fout << endl;
+				else
+					fout << molc.refEnergy() << endl;
+			}
+		}
+		fin.close();
+		fout.close();
+	}
+	else {
+
+	cout << setprecision(DATAPRECISION);
+
+	if (opt_f) {
+
+		if (opt_h) {
+			cout << setw(BLANK) << left << '#';
+			for (int i = 0; i < rule.size(); ++i) {
+				ostringstream sout;
+				sout << "rule" << i + 1;
+				cout << setw(DATAWIDTH) << left << sout.str();
+			}
+			if (!opt_e)
+				cout << endl;
+			else
+				cout << "Energy" << endl;
+		}
+	}
+	else if (opt_r) {
 
 		if (!opt_h) {
 			cout << setw(BLANK) << left << '#';
@@ -227,56 +377,50 @@ int main(int argc, char **argv)
 		}
 	}
 
-	Molecule molc;
+		int tmp;
+		while (cin >> tmp) {
+			molc.InputEnergy(cin);
+			molc.InputX(cin);
 
-	ifstream fin;
-	cout << setprecision(DATAPRECISION);
+			if (opt_f) {
+				if (opt_h)
+					cout << setw(BLANK) << left << ' ';
 
-	fin.open(argv[argc - 1], ifstream::in);
-
-	int tmp;
-	while (fin >> tmp) {
-		molc.InputEnergy(fin);
-		molc.InputX(fin);
-
-		if (opt_f) {
-			if (opt_h)
-				cout << setw(BLANK) << left << ' ';
-
-			cout << setw(DATAWIDTH) << left << rule[0]->GetBond(molc);
-			if (opt_e)
-				cout << molc.refEnergy() << endl;
-			else
-				cout << endl;
-		}
-		else if (opt_r) {
-			if (!opt_h)
-				cout << setw(BLANK) << left << ' ';
-
-			for (size_t i = 0; i < rule.size(); ++i) {
-				cout << setw(DATAWIDTH) << left << rule[i]->GetBond(molc);
+				cout << setw(DATAWIDTH) << left << rule[0]->GetBond(molc);
+				if (opt_e)
+					cout << molc.refEnergy() << endl;
+				else
+					cout << endl;
 			}
-			if (opt_e)
-				cout << endl;
-			else
-				cout << molc.refEnergy() << endl;
-		}
-		else {
-			if (!opt_h)
-				cout << setw(BLANK) << left << ' ';
+			else if (opt_r) {
+				if (!opt_h)
+					cout << setw(BLANK) << left << ' ';
 
-			vector<vector<Molecule::Bond>> bond = molc.refBond();
-			for (int iBondtype = 0; iBondtype < Molecule::nBondtype; ++iBondtype) {
-				sort(bond[iBondtype].begin(), bond[iBondtype].end());
-
-				for (int iBond = 0; iBond < Molecule::nBond[iBondtype]; ++iBond) {
-					cout << setw(DATAWIDTH) << left << bond[iBondtype][iBond].getLen();
+				for (size_t i = 0; i < rule.size(); ++i) {
+					cout << setw(DATAWIDTH) << left << rule[i]->GetBond(molc);
 				}
+				if (opt_e)
+					cout << endl;
+				else
+					cout << molc.refEnergy() << endl;
 			}
-			if (opt_e)
-				cout << endl;
-			else
-				cout << molc.refEnergy() << endl;
+			else {
+				if (!opt_h)
+					cout << setw(BLANK) << left << ' ';
+
+				vector<vector<Molecule::Bond>> bond = molc.refBond();
+				for (int iBondtype = 0; iBondtype < Molecule::nBondtype; ++iBondtype) {
+					sort(bond[iBondtype].begin(), bond[iBondtype].end());
+
+					for (int iBond = 0; iBond < Molecule::nBond[iBondtype]; ++iBond) {
+						cout << setw(DATAWIDTH) << left << bond[iBondtype][iBond].getLen();
+					}
+				}
+				if (opt_e)
+					cout << endl;
+				else
+					cout << molc.refEnergy() << endl;
+			}
 		}
 	}
 
